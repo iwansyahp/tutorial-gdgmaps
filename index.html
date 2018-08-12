@@ -1,0 +1,157 @@
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Coba gunakan Google Maps</title>
+    <style>
+        #map {
+            width: 480px;
+            height: 480px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <div>
+        <input id="address" type="textbox" value="Sydney,
+            NSW">
+        <input type="button" value="Encode" onclick="codeAddress()">
+    </div>
+    <script type="text/javascript">
+        var map;
+        var marker;
+        var geocoder;
+        var services;
+        var infowindow;
+
+        // inisialisasi Map
+        function initMap() {
+            geocoder = new google.maps.Geocoder();
+            let latt = {
+                lat: -34.39,
+                lng: 150.644
+            };
+            if (navigator.geolocation) {
+                // ambil lokasi
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    var pos = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+
+                    // tampilkan lokasi di peta
+                    this.createMap(pos);
+                }, function() {
+                    alert('Gagal mengambil lokasi saat ini!');
+                });
+            }
+        }
+
+        // create map
+        function createMap(myLattLng) {
+            var dS = new google.maps.DirectionsService;
+            var dD = new google.maps.DirectionsRenderer;
+
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: myLattLng,
+                zoom: 18
+            });
+
+            var marker = new google.maps.Marker({
+                map: map,
+                position: myLattLng
+            });
+
+            // body request untuk pemanggilan service Places
+            var request = {
+                location: myLattLng,
+                radius: '500',
+                query: 'restaurant'
+            };
+
+            map.addListener('click', function(event) {
+                calculateAndDisplayRoute(myLattLng, event.latLng, dS, dD);
+            });
+
+
+            // panggil Places Services
+            services = new google.maps.places.PlacesService(map);
+            services.textSearch(request, function(results, status) {
+                if (google.maps.places.PlacesServiceStatus.OK) {
+                    for (var i = 0; i < results.length; i++) {
+                        let place = results[i];
+                        // buat marker untuk masing-masing restaurant
+                        createMarker(place);
+                    }
+                }
+            });
+        }
+        // Perhitungan menggunakan Formula Haversine
+        function rad(x) {
+            return x * Math.PI / 180;
+        }
+
+        function getRadius(p1, p2) {
+            var R = 6378137; // Earth’s mean radius in meter
+            var dLat = rad(p2.lat() - p1.lat);
+            var dLong = rad(p2.lng() - p1.lng);
+            var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(rad(p1.lat)) * Math.cos(rad(p2.lat())) *
+                Math.sin(dLong / 2) * Math.sin(dLong / 2);
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            var d = R * c;
+            return parseFloat(d / 1000).toFixed(2); // returns the distance in meter with 2 decimal
+        }
+
+        function createMarker(place) {
+            var marker = new google.maps.Marker({
+                map: map,
+                position: place.geometry.location,
+                title: place.name
+
+            });
+        }
+
+        function calculateAndDisplayRoute(start, end, directionsService, directionsDisplay) {
+            let radius = getRadius(start, end);
+            console.log("Radius: " + radius);
+
+            directionsService.route({
+                origin: start,
+                destination: end,
+                travelMode: 'DRIVING'
+            }, function(response, status) {
+                if (status == 'OK') {
+                    directionsDisplay.setMap(map);
+                    console.log("Jarak rute: " + response.routes[0].legs[0].distance.text);
+                    console.log("Durasi rute: " + response.routes[0].legs[0].duration.text);
+                    directionsDisplay.setDirections(response);
+                } else {
+                    console.log('Gagal memanggil Direction Services' + JSON.stringify(response));
+                }
+            });
+        }
+
+        function codeAddress() {
+            var address = document.getElementById('address').value;
+            geocoder.geocode({
+                    'address': address
+                },
+                function(results, status) {
+                    if (status == 'OK') {
+                        map.setCenter(results[0].geometry.location);
+                        var marker = new google.maps.Marker({
+                            map: map,
+                            position: results[0].geometry.location
+                        });
+                    } else {
+                        alert('Gagal memanggil Geocode:' + status);
+                    }
+                });
+        }
+    </script>
+    <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCcux0uk5lvIkiL2_5sibfr-hOy1_9dnbo&callback=initMap&libraries=places"></script>
+</body>
+
+</html>
